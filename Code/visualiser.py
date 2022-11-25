@@ -1,17 +1,12 @@
-import sys
+# import sys
 
-sys.path.insert(0, "Utilities/")
+# sys.path.insert(0, "Utilities/")
 # from plotting import newfig, savefig
 import matplotlib as plt
 from matplotlib.pyplot import savefig
-from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.gridspec as gridspec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
-import jax
-import time
-
-from burgers_preprocessing import BurgersPreprocessing
 
 
 class Plot:

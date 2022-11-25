@@ -1,6 +1,6 @@
 ## Notes:
 
-# 24/11/22 - Load and Save Models
+# Load and Save Models
 
     - Need to find way to load and save models for Jax, current models take ~12min to train. 
     Potential solution: https://github.com/google/flax/discussions/1876 Would need to be able to 
@@ -14,14 +14,27 @@
             Notes: 
             - Will need to separate the model builder from the visualiser in this doc.
             - Will try and immitate the code from HW5 -> toggle between retraining and loading in
-            the terminal.
+            the terminal. Might need to implement a REPL.
             - Need to restructure code into classes to allow this. Current code slightly unreadable.
             - Incomplete burgers_model.py revamp.
             - runner.py hasn't been started.
 
-# 25/11/22
+# Integrate burgers_preprocessing.py and visualiser.py into runner.py
 
-    - burgers_preprocessing.py complete, need to integrate into runner.py
-    - visualiser.py structurally complete still needs to be debugged (see Debugging.md). Need to 
-    integrate into runner.py
-    
+    - burgers_preprocessing.py complete, needs integration.
+    - visualiser.py structurally complete still needs to be debugged (see Debugging.md). Needs integration.
+    - Currently all of preprocessing runs in one go, as soon as the class is instantiated all the
+    variables are populated. Perhaps break into separate functions, and only call the portion that is 
+    needed as needed. 
+    - Perhaps functions in runner can be moved out? Move gradients out, move loss functions out, etc (like
+    how we did Beras) and only leave in the REPL (not built yet) the model runner, and the load/save methods
+    (not yet implemented).
+
+# REPL
+
+    - Need to build REPL to allow toggling between retraining and loadine from terminal. 
+    - See HW5 or SearchEngine (from CSCI 0200). 
+
+# Debug 
+
+    - Work through the debugging doc.
