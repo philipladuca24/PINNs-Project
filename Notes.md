@@ -1,6 +1,6 @@
-## Notes:
+# Notes:
 
-# Load and Save Models
+## Load and Save Models
 
 - Need to find way to load and save models for Jax, current models take ~12min to train. 
 Potential solution: https://github.com/google/flax/discussions/1876 Would need to be able to 
@@ -18,7 +18,7 @@ the terminal. Might need to implement a REPL.
 - Incomplete burgers_model.py revamp.
 - runner.py hasn't been started.
 
-# Integrate burgers_preprocessing.py and visualiser.py into runner.py
+## Integrate burgers_preprocessing.py and visualiser.py into runner.py
 
 - burgers_preprocessing.py complete, needs integration.
 - visualiser.py structurally complete still needs to be debugged (see Debugging.md). Needs integration.
@@ -29,11 +29,11 @@ needed as needed.
 how we did Beras) and only leave in the REPL (not built yet) the model runner, and the load/save methods
 (not yet implemented).
 
-# REPL
+## REPL
 
 - Need to build REPL to allow toggling between retraining and loadine from terminal. 
 - See HW5 or SearchEngine (from CSCI 0200). 
 
-# Debug 
+## Debug 
 
 - Work through the debugging doc.

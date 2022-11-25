@@ -1,6 +1,6 @@
-## Debugging:
+# Debugging:
 
-# 24/11/22 - Visualiser -> newfig / plotting / plt.figure() error:
+## 24/11/22 - Visualiser -> newfig / plotting / plt.figure() error:
 "Nov 24 - code is training, pre turning code into classes" push:
 
 - TypeError: error message below. Error probably coming from plt.figure(1.0, 1.1) on line 236.
