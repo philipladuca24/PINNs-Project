@@ -1,176 +1,145 @@
-
-import os
-import argparse
+import jax.numpy as jnp
+from jax import grad, jit, vmap, value_and_grad
+from jax import random
 import numpy as np
-import pickle
-import tensorflow as tf
-from typing import Optional
-from types import SimpleNamespace
+from pyDOE import lhs
+from jax.nn import relu, tanh, relu
+import sys
+from jax.example_libraries import optimizers
+from tqdm import trange
+from functools import partial
+from scipy.interpolate import griddata
 
-
-from model import ImageCaptionModel, accuracy_function, loss_function
-from decoder import TransformerDecoder, RNNDecoder
-import transformer
-
-from visualiser import Plot
+from burgers_preprocessing import BurgersPreprocessing
 
 """
 Script to run model initialised with loaded weights and biases.
 """
 
-def parse_args(args=None):
-    """ 
-    Perform command-line argument parsing (other otherwise parse arguments with defaults). 
-    To parse in an interative context (i.e. in notebook), add required arguments.
-    These will go into args and will generate a list that can be passed in.
-    For example: 
-        parse_args('--type', 'rnn', ...)
-    """
-    parser = argparse.ArgumentParser(description="Let's train some neural nets!", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--type',           required=True,              choices=['rnn', 'transformer'],     help='Type of model to train')
-    parser.add_argument('--task',           required=True,              choices=['train', 'test', 'both'],  help='Task to run')
-    parser.add_argument('--data',           required=True,              help='File path to the assignment data file.')
-    parser.add_argument('--epochs',         type=int,   default=3,      help='Number of epochs used in training.')
-    parser.add_argument('--lr',             type=float, default=1e-3,   help='Model\'s learning rate')
-    parser.add_argument('--optimizer',      type=str,   default='adam', choices=['adam', 'rmsprop', 'sgd'], help='Model\'s optimizer')
-    parser.add_argument('--batch_size',     type=int,   default=100,    help='Model\'s batch size.')
-    parser.add_argument('--hidden_size',    type=int,   default=256,    help='Hidden size used to instantiate the model.')
-    parser.add_argument('--window_size',    type=int,   default=20,     help='Window size of text entries.')
-    parser.add_argument('--chkpt_path',     default='',                 help='where the model checkpoint is')
-    parser.add_argument('--check_valid',    default=True,               action="store_true",  help='if training, also print validation after each epoch')
-    if args is None: 
-        return parser.parse_args()      ## For calling through command line
-    return parser.parse_args(args)      ## For calling through notebook.
+def random_layer_params(m, n, key, scale):
+    w_key, b_key = random.split(key)
+    return scale*random.normal(w_key, (m, n)), jnp.zeros(n)
+
+def init_network_params(sizes, key):
+    keys = random.split(key, len(sizes))
+    return [random_layer_params(m, n, k, 2.0/(jnp.sqrt(m+n))) for m, n, k in zip(sizes[:-1], sizes[1:], keys)]
 
 
-def main(args):
+@jit
+def predict(params, X, lower_bound, upper_bound):
+    # per-example predictions
+    H =  2.0*(X - lower_bound)/(upper_bound - lower_bound) - 1.0
+    for w, b in params[:-1]:
+        H = tanh(jnp.dot(H, w) + b)
+    final_w, final_b = params[-1]
+    H = jnp.dot(H, final_w) + final_b
+    return H
 
-    ##############################################################################
-    ## Data Loading
-    with open(args.data, 'rb') as data_file:
-        data_dict = pickle.load(data_file)
+@jit
+def net_u(params, x, t, lower_bound, upper_bound):
+    x_con =jnp.array([x, t])
+    y_pred = predict(params, x_con, lower_bound, upper_bound)
+    return y_pred
 
-    feat_prep = lambda x: np.repeat(np.array(x).reshape(-1, 2048), 5, axis=0)
-    img_prep  = lambda x: np.repeat(x, 5, axis=0)
-    train_captions  = np.array(data_dict['train_captions'])
-    test_captions   = np.array(data_dict['test_captions'])
-    train_img_feats = feat_prep(data_dict['train_image_features'])
-    test_img_feats  = feat_prep(data_dict['test_image_features'])
-    # train_images    = img_prep(data_dict['train_images'])
-    # test_images     = img_prep(data_dict['test_images'])
-    word2idx        = data_dict['word2idx']
-    # idx2word        = data_dict['idx2word']
 
-    ##############################################################################
-    ## Training Task
-    if args.task in ('train', 'both'):
+@jit
+def net_u_grad(params, x, t, lower_bound, upper_bound):
+    x_con =jnp.array([x, t])
+    y_pred = predict(params, x_con, lower_bound, upper_bound)
+    print(f"shape y_pred: {jnp.shape(y_pred)}")
+    return y_pred[0]
+
+@jit
+def loss_data(params,x,t, lower_bound, upper_bound, u_train):
+    u_pred = vmap(net_u, (None, 0, 0, None, None))(params, x, t, lower_bound, upper_bound)
+    print(f"Shape of u_pred: {jnp.shape(u_pred)}")
+    # sys.exit()
+    loss = jnp.mean((u_pred - u_train)**2 )
+    return loss
+
+def net_f(params, lower_bound, upper_bound):
+    def u_t(x, t):
+        ut = grad(net_u_grad, argnums=2)(params, x, t, lower_bound, upper_bound) 
+        return ut
+
+    def u_x(x, t):
+        ux = grad(net_u_grad, argnums=1)(params, x, t, lower_bound, upper_bound) 
+        return ux   
+    return jit(u_t), jit(u_x)
+
+def net_fxx(params, lower_bound, upper_bound):
+    def u_xx(x, t):
+        _, u_x = net_f(params, lower_bound, upper_bound) 
+        ux = grad(u_x, argnums=0)(x, t) 
+        return ux   
+    return jit(u_xx)
+
+
+@jit
+def loss_f(params, x, t, lower_bound, upper_bound, nu):
+    u = vmap(net_u, (None, 0, 0, None, None))(params, x, t, lower_bound, upper_bound)
+    u_tf, u_xf = net_f(params, lower_bound, upper_bound)
+    u_xxf = net_fxx(params, lower_bound, upper_bound)
+    u_t = vmap(u_tf, (0, 0))(x, t)
+    u_x = vmap(u_xf, (0, 0))(x, t)
+    u_xx = vmap(u_xxf, (0, 0))(x, t)
+    res = u_t + u.flatten() * u_x - nu * u_xx 
+    loss_f = jnp.mean((res.flatten())**2)
+    return loss_f
+
+@jit
+def predict_u(params, x_star, t_star, lower_bound, upper_bound):
+    u_pred = vmap(net_u, (None, 0, 0, None, None))(params, x_star, t_star, lower_bound, upper_bound)
+    return u_pred
+
+nu = 0.01/np.pi
+layers = [2, 20, 20, 20, 20, 20, 20, 20, 20, 1]
+
+X, T, Exact, X_star, u_star, lower_bound, upper_bound, u_train, x_d, t_d, x_f, t_f, x_star, t_star = BurgersPreprocessing()
+
+params = init_network_params(layers, random.PRNGKey(1234))
+
+opt_init, opt_update, get_params = optimizers.adam(5e-4)
+opt_state = opt_init(params)
+nIter = 20000 + 1
+ld_list = []
+lf_list = []
+
+def loss_fn(params, x_f, t_f,x_d, t_d, lower_bound, upper_bound, nu, y_d):
+    loss_res = 0.01*loss_f(params, x_f, t_f, lower_bound, upper_bound, nu)
+    data_loss = loss_data(params, x_d, t_d, lower_bound, upper_bound, y_d) 
+    return loss_res + data_loss
+
+# @partial(jit, static_argnums=(0,))
+@jit
+def step(istep, opt_state, t_d, x_d, y_d, t_f, x_f, lower_bound, upper_bound):
+    param = get_params(opt_state) 
+    g = grad(loss_fn, argnums=0)(param, x_f, t_f,x_d, t_d, lower_bound, upper_bound, nu, y_d)
+    return opt_update(istep, g, opt_state)
+
+
+pbar = trange(nIter)
+
+for it in pbar:
+    opt_state = step(it, opt_state, t_d, x_d, u_train, t_f, x_f, lower_bound, upper_bound)
+    if it % 1 == 0:
+        params = get_params(opt_state)
+        l_d = loss_data(params, x_d, t_d, lower_bound, upper_bound, u_train)
+        l_f = loss_f(params, x_f, t_f, lower_bound, upper_bound, nu)
+        pbar.set_postfix({'Loss': l_d, 'loss_physics': l_f})
+        ld_list.append(l_d)
+        lf_list.append(l_f)
+
+l_list = []
+
+u_pred = predict_u(params, x_star, t_star, lower_bound, upper_bound)
+print(f"u_pred Shape: {u_pred.shape}")
         
-        ##############################################################################
-        ## Model Construction
-        decoder_class = {
-            'rnn'           : RNNDecoder,
-            'transformer'   : TransformerDecoder
-        }[args.type]
-        
-        decoder = decoder_class(
-            vocab_size  = len(word2idx), 
-            hidden_size = args.hidden_size, 
-            window_size = args.window_size
-        )
-        
-        model = ImageCaptionModel(decoder)
-        
-        compile_model(model, args)
-        train_model(
-            model, train_captions, train_img_feats, word2idx['<pad>'], args, 
-            valid = (test_captions, test_img_feats)
-        )
-        if args.chkpt_path: 
-            ## Save model to run testing task afterwards
-            save_model(model, args)
-                
-    ##############################################################################
-    ## Testing Task
-    if args.task in ('test', 'both'):
-        if args.task != 'both': 
-            ## Load model for testing. Note that architecture needs to be consistent
-            model = load_model(args)
-        if not (args.task == 'both' and args.check_valid):
-            test_model(model, test_captions, test_img_feats, word2idx['<pad>'], args)
-
-    ##############################################################################
-
-##############################################################################
-## UTILITY METHODS
-
-def save_model(model, args):
-    '''Loads model based on arguments'''
-    tf.keras.models.save_model(model, args.chkpt_path)
-    print(f"Model saved to '{args.chkpt_path}'")
+error_u = jnp.linalg.norm(u_star-u_pred,2)/np.linalg.norm(u_star,2)
+print('Error u: %e' % (error_u))
+np.save("ld_list.npy", np.array(ld_list), allow_pickle=True) 
+np.save("lf_list.npy", np.array(lf_list), allow_pickle=True)  
 
 
-def load_model(args):
-    '''Loads model by reference based on arguments. Also returns said model'''
-    model = tf.keras.models.load_model(
-        args.chkpt_path,
-        custom_objects=dict(
-            AttentionHead           = transformer.AttentionHead,
-            AttentionMatrix         = transformer.AttentionMatrix,
-            MultiHeadedAttention    = transformer.MultiHeadedAttention,
-            TransformerBlock        = transformer.TransformerBlock,
-            PositionalEncoding      = transformer.PositionalEncoding,
-            TransformerDecoder      = TransformerDecoder,
-            RNNDecoder              = RNNDecoder,
-            ImageCaptionModel       = ImageCaptionModel
-        ),
-    )
-    ## Saving is very nuanced. Might need to set the custom components correctly.
-    ## Functools.partial is a function wrapper that auto-fills a selection of arguments. 
-    ## so in other words, the first argument of ImageCaptionModel.test is model (for self)
-    from functools import partial
-    model.test    = partial(ImageCaptionModel.test,    model)
-    model.train   = partial(ImageCaptionModel.train,   model)
-    model.compile = partial(ImageCaptionModel.compile, model)
-    compile_model(model, args)
-    print(f"Model loaded from '{args.chkpt_path}'")
-    return model
-
-
-def compile_model(model, args):
-    '''Compiles model by reference based on arguments'''
-    optimizer = tf.keras.optimizers.get(args.optimizer).__class__(learning_rate = args.lr)
-    model.compile(
-        optimizer   = optimizer,
-        loss        = loss_function,
-        metrics     = [accuracy_function]
-    )
-
-
-def train_model(model, captions, img_feats, pad_idx, args, valid):
-    '''Trains model and returns model statistics'''
-    stats = []
-    try:
-        for epoch in range(args.epochs):
-            stats += [model.train(captions, img_feats, pad_idx, batch_size=args.batch_size)]
-            if args.check_valid:
-                model.test(valid[0], valid[1], pad_idx, batch_size=args.batch_size)
-    except KeyboardInterrupt as e:
-        if epoch > 0:
-            print("Key-value interruption. Trying to early-terminate. Interrupt again to not do that!")
-        else: 
-            raise e
-        
-    return stats
-
-
-def test_model(model, captions, img_feats, pad_idx, args):
-    '''Tests model and returns model statistics'''
-    perplexity, accuracy = model.test(captions, img_feats, pad_idx, batch_size=args.batch_size)
-    return perplexity, accuracy
-
-
-## END UTILITY METHODS
-##############################################################################
-
-if __name__ == '__main__':
-    main(parse_args())
+U_pred = griddata(X_star, u_pred.flatten(), (X, T), method='cupper_boundic')
+Error = np.abs(Exact - U_pred)

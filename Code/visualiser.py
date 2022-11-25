@@ -10,7 +10,7 @@ import numpy as np
 import jax
 import time
 
-from burgers_model import BurgersModel 
+from burgers_preprocessing import BurgersPreprocessing
 
 class Plot():
     def __init__(self):
