@@ -1,5 +1,9 @@
 # Notes:
 
+## No data PINNs
+
+- Resources: https://github.com/madagra/basic-pinn/blob/main/burgers_equation_1d.py, https://towardsdatascience.com/solving-differential-equations-with-neural-networks-afdcf7b8bcc4
+
 ## Load and Save Models
 
 - Need to find way to load and save models for Jax, current models take ~12min to train. 
