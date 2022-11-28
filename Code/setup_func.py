@@ -27,19 +27,17 @@ def init_network_params(sizes, key):
 @jit
 def predict(params, X):
   # per-example predictions
-  inputs = X
+  activations = X
   for w, b in params[:-1]:
-    outputs = jnp.dot(w, X) + b
-    # tanh is better for PINNs due to smoothness
-    activations = tanh(outputs)
-  
+    activations = tanh(jnp.dot(activations, w) + b)
   final_w, final_b = params[-1]
-  logits = jnp.dot(final_w, activations) + final_b
+  logits = jnp.sum(jnp.dot(activations, final_w) + final_b)
   return logits
 
 @jit
 def net_u(params, X):
-    return predict(params, X)
+    x_array = jnp.array([X])
+    return predict(params, x_array)
 
 
 def net_ux(params):
@@ -50,7 +48,7 @@ def net_ux(params):
 
 def net_uxx(params):
     def uxx(X):
-        u_x = net_ux(params, X)
+        u_x = net_ux(params)
         return grad(u_x)(X)
     
     return jit(uxx)
@@ -78,7 +76,7 @@ def loss_b(params):
 def loss(params, X, nu):
     lossf = loss_f(params, X, nu)
     lossb = loss_b(params)
-    return lossf + lossb
+    return 0.01*lossf + lossb
 
 #hyperparameters to change
 nu = 10 ** (-3)
@@ -90,6 +88,7 @@ opt_state = opt_init(params)
 lb_list = []
 lf_list = []
 x = jnp.arange(-1, 1, 0.01)
+
 
 @jit
 def step(istep, opt_state, X):
@@ -104,16 +103,18 @@ for it in pbar:
     opt_state = step(it, opt_state, x)
     if it % 1 == 0:
         params = get_params(opt_state)
-        l_b = loss_b(params, x)
+        l_b = loss_b(params)
         l_f = loss_f(params, x, nu)
         pbar.set_postfix({"Loss_res": l_f, "loss_bound": l_b})
         lb_list.append(l_b)
         lf_list.append(l_f)
 
-x_pred = predict(params, x)
+x_pred = vmap(net_u, (None, 0))(params, x)
 
 plt.plot(x, x_pred)
-plt.show
+# plt.plot(nIter, lb_list)
+# plt.plot(nIter, lf_list)
+plt.show()
 
 
 # np.save("ld_list.npy", np.array(lb_list), allow_pickle=True)

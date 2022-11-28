@@ -38,6 +38,8 @@ how we did Beras) and only leave in the REPL (not built yet) the model runner, a
 - Need to build REPL to allow toggling between retraining and loadine from terminal. 
 - See HW5 or SearchEngine (from CSCI 0200). 
 
+## setup_func
+
 ## Debug 
 
 - Work through the debugging doc.
