@@ -8,15 +8,36 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
 
-# A helper function to randomly initialize weights and biases
-# for a dense neural network layer
 def random_layer_params(m, n, key, scale):
+    """
+    A helper function to randomly initialize weights and biases for a 
+    dense neural network layer.
+
+    Args:
+        m (_type_): _description_
+        n (_type_): _description_
+        key (_type_): _description_
+        scale (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     w_key, b_key = random.split(key)
     # might want to initialize with glorot?
     return scale * random.normal(w_key, (m, n)), jnp.zeros(n)
 
-# Initialize all layers for a fully-connected neural network with sizes "sizes"
 def init_network_params(sizes, key):
+    """
+    Initialize all layers for a fully-connected neural network with 
+    sizes "sizes".
+
+    Args:
+        sizes (_type_): _description_
+        key (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     keys = random.split(key, len(sizes))
     # why is this scaling used?
     return [
@@ -26,13 +47,22 @@ def init_network_params(sizes, key):
 
 @jit
 def predict(params, X):
-  # per-example predictions
-  activations = X
-  for w, b in params[:-1]:
-    activations = tanh(jnp.dot(activations, w) + b)
-  final_w, final_b = params[-1]
-  logits = jnp.sum(jnp.dot(activations, final_w) + final_b)
-  return logits
+    """
+    Per example predictions
+
+    Args:
+        params (_type_): _description_
+        X (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    activations = X
+    for w, b in params[:-1]:
+        activations = tanh(jnp.dot(activations, w) + b)
+    final_w, final_b = params[-1]
+    logits = jnp.sum(jnp.dot(activations, final_w) + final_b)
+    return logits
 
 @jit
 def net_u(params, X):
@@ -78,7 +108,7 @@ def loss(params, X, nu):
     lossb = loss_b(params)
     return 0.01*lossf + lossb
 
-#hyperparameters to change
+####### Hyperparameters ##################
 nu = 10 ** (-3)
 layer_sizes = [1, 20, 20, 20, 1]
 nIter = 20000 + 1

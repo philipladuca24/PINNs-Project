@@ -33,24 +33,3 @@ TypeError: Value after * must be an iterable, not float
         File "/Users/maximbeekenkamp/Desktop/Computer_Science/CSCI_1470/Final_Project/PINNs-Project/Code/pinn_bugers_jax.py", line 241, in <module>
     TypeError: cannot unpack non-iterable Figure object
 "
-# 28/11/22
-
-- TypeError: error message below. Error is a shape error of the dot product in the predict function.
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "/Users/maximbeekenkamp/Desktop/Computer_Science/CSCI_1470/Final_Project/PINNs-Project/Code/mymodel.py", line 104, in <module>
-    opt_state = step(it, opt_state, x)
-  File "/Users/maximbeekenkamp/Desktop/Computer_Science/CSCI_1470/Final_Project/PINNs-Project/Code/mymodel.py", line 97, in step
-    g = grad(loss, argnums=0)(param, X, nu)
-  File "/Users/maximbeekenkamp/Desktop/Computer_Science/CSCI_1470/Final_Project/PINNs-Project/Code/mymodel.py", line 79, in loss
-    lossf = loss_f(params, X, nu)
-  File "/Users/maximbeekenkamp/Desktop/Computer_Science/CSCI_1470/Final_Project/PINNs-Project/Code/mymodel.py", line 64, in loss_f
-    u = vmap(net_u, (None, 0))(params, X)
-  File "/Users/maximbeekenkamp/Desktop/Computer_Science/CSCI_1470/Final_Project/PINNs-Project/Code/mymodel.py", line 42, in net_u
-    return predict(params, X)
-  File "/Users/maximbeekenkamp/Desktop/Computer_Science/CSCI_1470/Final_Project/PINNs-Project/Code/mymodel.py", line 37, in predict
-    logits = jnp.dot(final_w, activations) + final_b
-  File "/Users/maximbeekenkamp/anaconda3/envs/PINNs/lib/python3.9/site-packages/jax/_src/numpy/lax_numpy.py", line 2912, in dot
-    return lax.dot(a, b, precision=precision)
-TypeError: Incompatible shapes for dot: got (20, 1) and (20, 20).

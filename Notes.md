@@ -38,7 +38,16 @@ how we did Beras) and only leave in the REPL (not built yet) the model runner, a
 - Need to build REPL to allow toggling between retraining and loadine from terminal. 
 - See HW5 or SearchEngine (from CSCI 0200). 
 
-## setup_func
+## setup_func.py
+
+- setup_func.py is training.
+- Need to correctly implement the boundary conditions. Currently the solution curve is smoothly translated
+approximately -0.5 at x = -1 and then connects back at the x = 1 boundary. 
+
+## Generate docstrings!
+
+- Need to build documentation for our functions so that we can all use our code and that its easy for
+people to continue coding and / or debug.
 
 ## Debug 
 
