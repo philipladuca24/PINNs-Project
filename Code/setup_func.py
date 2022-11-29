@@ -119,6 +119,10 @@ lb_list = []
 lf_list = []
 x = jnp.arange(-1, 1, 0.01)
 
+# we can try to increase the layer size or increase the number of points being trained on, we can also try to 
+# include 1 in the arange, different weighting on the loss function may help, we can try glorot
+ # initialization for the parameters, not sure how to be more careful with the boundry
+
 
 @jit
 def step(istep, opt_state, X):
