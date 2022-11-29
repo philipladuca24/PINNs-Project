@@ -59,27 +59,59 @@ def predict(params, X):
     """
     activations = X
     for w, b in params[:-1]:
-        activations = tanh(jnp.dot(activations, w) + b)
+        activations = tanh(jnp.dot(activations, w) + b) # need to transpose weights? 
     final_w, final_b = params[-1]
     logits = jnp.sum(jnp.dot(activations, final_w) + final_b)
     return logits
 
 @jit
 def net_u(params, X):
+    """
+    Define neural network for u(x).
+
+    Args:
+        params (_type_): _description_
+        X (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     x_array = jnp.array([X])
     return predict(params, x_array)
 
 
 def net_ux(params):
+    """
+    Define neural network for first spatial
+    derivative of u(x): u'(x).
+
+    Args:
+        params (_type_): _description_
+        X (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     def ux(X):
-        return grad(net_u, argnums=1)(params, X)
+        return grad(net_u, argnums=1)(params, X) 
     
     return jit(ux)
 
 def net_uxx(params):
+    """
+    Define neural network for second spatial
+    derivative of u(x): u''(x).
+
+    Args:
+        params (_type_): _description_
+        X (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     def uxx(X):
         u_x = net_ux(params)
-        return grad(u_x)(X)
+        return grad(u_x)(X) 
     
     return jit(uxx)
 
@@ -89,7 +121,7 @@ def funx(X):
 
 @jit
 def loss_f(params, X, nu):
-  u = vmap(net_u, (None, 0))(params, X)
+  u = vmap(net_u, (None, 0))(params, X) 
   u_xxf = net_uxx(params)
   u_xx = vmap(u_xxf, (0))(X)
   fx = vmap(funx, (0))(X)
@@ -99,14 +131,14 @@ def loss_f(params, X, nu):
 
 @jit 
 def loss_b(params):
-    loss_b = (net_u(params, -1) - 1) ** 2 + (net_u(params, 1)) ** 2
+    loss_b = jnp.sum((net_u(params, -1)-1) ** 2 + (net_u(params, 1)) ** 2)
     return loss_b
 
 @jit
 def loss(params, X, nu):
     lossf = loss_f(params, X, nu)
     lossb = loss_b(params)
-    return 0.01*lossf + lossb
+    return lossb + lossf 
 
 ####### Hyperparameters ##################
 nu = 10 ** (-3)
@@ -117,7 +149,7 @@ opt_init, opt_update, get_params = optimizers.adam(5e-4)
 opt_state = opt_init(params)
 lb_list = []
 lf_list = []
-x = jnp.arange(-1, 1, 0.01)
+x = jnp.arange(-1, 1.01, 0.01)
 
 # we can try to increase the layer size or increase/ (decrease? this would put more focus on the boundry points)
 # the number of points being trained on, we can also try to include 1 in the arange, 
@@ -129,7 +161,7 @@ x = jnp.arange(-1, 1, 0.01)
 def step(istep, opt_state, X):
     param = get_params(opt_state)
     g = grad(loss, argnums=0)(param, X, nu)
-    return opt_update(istep, g, opt_state)
+    return opt_update(istep, g, opt_state) 
 
 
 pbar = trange(nIter)
@@ -144,9 +176,9 @@ for it in pbar:
         lb_list.append(l_b)
         lf_list.append(l_f)
 
-x_pred = vmap(net_u, (None, 0))(params, x)
+u_pred = vmap(predict, (None, 0))(params, x)
 
-plt.plot(x, x_pred)
+plt.plot(x, u_pred)
 # plt.plot(nIter, lb_list)
 # plt.plot(nIter, lf_list)
 plt.show()
