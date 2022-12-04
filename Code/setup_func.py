@@ -131,14 +131,14 @@ def loss_f(params, X, nu):
 
 @jit 
 def loss_b(params):
-    loss_b = jnp.sum((net_u(params, -1)-1) ** 2 + (net_u(params, 1)) ** 2)
+    loss_b = (net_u(params, -1)-1) ** 2 + (net_u(params, 1)) ** 2
     return loss_b
 
 @jit
 def loss(params, X, nu):
     lossf = loss_f(params, X, nu)
     lossb = loss_b(params)
-    return lossb + lossf 
+    return 0.01*lossb + lossf 
 
 ####### Hyperparameters ##################
 nu = 10 ** (-3)
@@ -149,7 +149,7 @@ opt_init, opt_update, get_params = optimizers.adam(5e-4)
 opt_state = opt_init(params)
 lb_list = []
 lf_list = []
-x = jnp.arange(-1, 1.01, 0.01)
+x = jnp.arange(-1, 1.1, 0.1)
 
 # we can try to increase the layer size or increase/ (decrease? this would put more focus on the boundry points)
 # the number of points being trained on, we can also try to include 1 in the arange, 
