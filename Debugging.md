@@ -1,35 +1,32 @@
 # Debugging:
 
-## 24/11/22 - Visualiser -> newfig / plotting / plt.figure() error:
-"Nov 24 - code is training, pre turning code into classes" push:
+## 5/12/22 - lambda_adapt_pinn -> optimise_net / optimise_lambda error:
 
-- TypeError: error message below. Error probably coming from plt.figure(1.0, 1.1) on line 236.
-Likely stemming from latent error of "ImportError: cannot import name 'newfig' from 'plotting'". 
-Tried to solve using: https://github.com/maziarraissi/PINNs/issues/36
-Ultimately 'solved' by commented out the import line (line 17) and replaced it with line 18. 
-Newfig doesn't appear in the matplotlib documentation so thought it was referring to plt.figure 
-instead. Note: plotting seems to be an import from matplotlib.pyplot but not extremely clear either.
-"
 Traceback (most recent call last):
-    File "/Users/maximbeekenkamp/Desktop/Computer_Science/CSCI_1470/Final_Project/PINNs-Project/Code/pinn_bugers_jax.py", line 201, in <module>
-    File "/Users/maximbeekenkamp/anaconda3/envs/PINNs/lib/python3.9/site-packages/matplotlib/_api/deprecation.py", line 454, in wrapper
-        return func(*args, **kwargs)
-    File "/Users/maximbeekenkamp/anaconda3/envs/PINNs/lib/python3.9/site-packages/matplotlib/pyplot.py", line 783, in figure
-        manager = new_figure_manager(
-    File "/Users/maximbeekenkamp/anaconda3/envs/PINNs/lib/python3.9/site-packages/matplotlib/pyplot.py", line 359, in new_figure_manager
-        return _get_backend_mod().new_figure_manager(*args, **kwargs)
-    File "/Users/maximbeekenkamp/anaconda3/envs/PINNs/lib/python3.9/site-packages/matplotlib/backend_bases.py", line 3504, in new_figure_manager
-        fig = fig_cls(*args, **kwargs)
-    File "/Users/maximbeekenkamp/anaconda3/envs/PINNs/lib/python3.9/site-packages/matplotlib/_api/deprecation.py", line 454, in wrapper
-        return func(*args, **kwargs)
-    File "/Users/maximbeekenkamp/anaconda3/envs/PINNs/lib/python3.9/site-packages/matplotlib/figure.py", line 2473, in __init__
-        self.bbox_inches = Bbox.from_bounds(0, 0, *figsize)
-TypeError: Value after * must be an iterable, not float
-"
+  File "/Users/maximbeekenkamp/Desktop/Computer_Science/CSCI_1470/Final_Project/PINNs-Project/Code/lambda_adapt_pinn.py", line 335, in <module>
+    u_pred, lb_list, lf_list = model.train(nIter, x)
+  File "/Users/maximbeekenkamp/Desktop/Computer_Science/CSCI_1470/Final_Project/PINNs-Project/Code/lambda_adapt_pinn.py", line 301, in train
+    opt_state = self.optimise_net(it, opt_state, X, self.lambda_b, self.lambda_f)
+  File "/Users/maximbeekenkamp/Desktop/Computer_Science/CSCI_1470/Final_Project/PINNs-Project/Code/lambda_adapt_pinn.py", line 260, in optimise_net
+    g = grad(self.loss)(params, X, self.nu, lambda_b, lambda_f)
+TypeError: Argument '<__main__.LambdaAdaptPINN object at 0x139838eb0>' of type <class '__main__.LambdaAdaptPINN'> is not a valid JAX type.
 
-- TypeError: error message below. Error is a continuation of the error above.
-"
-    Traceback (most recent call last):
-        File "/Users/maximbeekenkamp/Desktop/Computer_Science/CSCI_1470/Final_Project/PINNs-Project/Code/pinn_bugers_jax.py", line 241, in <module>
-    TypeError: cannot unpack non-iterable Figure object
-"
+Traceback (most recent call last):
+  File "/Users/maximbeekenkamp/Desktop/Computer_Science/CSCI_1470/Final_Project/PINNs-Project/Code/lambda_adapt_pinn.py", line 335, in <module>
+    u_pred, lb_list, lf_list = model.train(nIter, x)
+  File "/Users/maximbeekenkamp/Desktop/Computer_Science/CSCI_1470/Final_Project/PINNs-Project/Code/lambda_adapt_pinn.py", line 304, in train
+    opt_state_lambda = self.optimise_lambda(opt_params_net, X, self.nu, self.lambda_b, self.lambda_f)
+TypeError: Argument '<__main__.LambdaAdaptPINN object at 0x127a2cd00>' of type <class '__main__.LambdaAdaptPINN'> is not a valid JAX type.
+
+- Error from the tracer instances inside of our @jit methods. Something about calling grad or optimise is bugging the code.
+- Try and implement the Deep Chem Solution: https://github.com/deepchem/deepchem/blob/master/deepchem/models/jax_models/pinns_model.py
+- Might need to take the functionality outside somehow?
+
+Note only niter is being regarded as static, somehow jax thinks nu (float = 0.001) is non-hashable. Might be indicative of bigger issue.
+
+Helpful websites: 
+- https://github.com/deepchem/deepchem/blob/master/deepchem/models/jax_models/pinns_model.py
+- https://github.com/google/jax/issues/4416
+- https://github.com/google/jax/issues/5609
+
+

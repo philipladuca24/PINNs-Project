@@ -1,10 +1,14 @@
 # Notes:
 
+## Self-adaptive PINNs
+
+- Try and solve the optimiser issues.
+
 ## No data PINNs
 
 - Resources: https://github.com/madagra/basic-pinn/blob/main/burgers_equation_1d.py, https://towardsdatascience.com/solving-differential-equations-with-neural-networks-afdcf7b8bcc4
 
-## Load and Save Models
+## Load and Save Models 
 
 - Need to find way to load and save models for Jax, current models take ~12min to train. 
 Potential solution: https://github.com/google/flax/discussions/1876 Would need to be able to 
@@ -37,12 +41,6 @@ how we did Beras) and only leave in the REPL (not built yet) the model runner, a
 
 - Need to build REPL to allow toggling between retraining and loadine from terminal. 
 - See HW5 or SearchEngine (from CSCI 0200). 
-
-## setup_func.py
-
-- setup_func.py is training.
-- Need to correctly implement the boundary conditions. Currently the solution curve is smoothly translated
-approximately -0.5 at x = -1 and then connects back at the x = 1 boundary. 
 
 ## Generate docstrings!
 
