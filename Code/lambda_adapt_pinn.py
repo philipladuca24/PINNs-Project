@@ -23,6 +23,7 @@ class LambdaAdaptPINN:
         # self.x0 = x0 # initial conditions
         # self.u0 = u0 # initial conditions 
         self.x = x # collocation points in the domain (used to compute loss)
+        self.x = jnp.expand_dims(self.x, axis=1)
 
         # N0 = self.x0.shape[0]
         NF = self.x.shape[0]
@@ -35,6 +36,7 @@ class LambdaAdaptPINN:
         self.opt_init, self.opt_update, self.get_params = adam(0.001)
         self.layer_sizes = layers
         self.params = self.init_network_params(self.layer_sizes, random.PRNGKey(0))
+        print(self.params, "init_network_params")
         self.nu = nu
         self.lb_list = []
         self.lf_list = []
@@ -67,7 +69,7 @@ class LambdaAdaptPINN:
             key (DeviceArray): _description_
 
         Returns:
-            DeviceArray: _description_
+            list[DeviceArray]: _description_
         """
         keys = random.split(key, len(sizes))
         # why is this scaling used?
@@ -77,7 +79,7 @@ class LambdaAdaptPINN:
         ]
 
     @jit
-    def predict(self, params: list, X: DeviceArray) -> DeviceArray:
+    def predict(self, params, X: DeviceArray) -> DeviceArray:
         """
         Per example predictions
 
@@ -89,7 +91,6 @@ class LambdaAdaptPINN:
             DeviceArray: _description_
         """
         activations = X
-
         for w, b in params[:-1]:
             activations = tanh(jnp.matmul(activations, w) + b) 
             
@@ -171,13 +172,16 @@ class LambdaAdaptPINN:
     @partial(jit, static_argnums=(0,))
     def optimise_net(self, istep: int, opt_state: OptimizerState, X: DeviceArray, lambda_b: DeviceArray, lambda_f: DeviceArray) -> DeviceArray:
         """ """
-        param = self.get_params(opt_state)
-        print(type(param), "param")
+        params = self.get_params(opt_state)
+        print(type(params), "param")
         print(type(X), "X")
         print(type(self.nu), "nu")
         print(type(lambda_b), "lambda_b")
         print(type(lambda_f), "lambda_f")
-        g = grad(self.loss, argnums=0)(param, X, self.nu, lambda_b, lambda_f)
+        print(X.shape, "X shape")
+        print(lambda_b.shape, "lambda_b shape")
+        print(lambda_f.shape, "lambda_f shape")
+        g = grad(self.loss)(params, X, self.nu, lambda_b, lambda_f)
         opt_state = self.opt_update(istep, g, opt_state) 
         print(type(opt_state), "opt_state")
         return opt_state
@@ -215,17 +219,18 @@ class LambdaAdaptPINN:
 
         return u_pred, self.lb_list, self.lf_list
 
-    def callback(): 
-        pass 
+    # def callback(): 
+    #     pass 
 
-    def evaluate(): 
-        pass 
+    # def evaluate(): 
+    #     pass 
 
 if __name__ == "__main__":
     nu = 10 ** (-3)
     layer_sizes = [1, 20, 20, 20, 1]
     nIter = 20000 + 1
     x = jnp.arange(-1, 1.1, 0.1)
+    x = jnp.expand_dims(x, axis=1)
 
     model = LambdaAdaptPINN(-1, 1, x, layer_sizes, nu)
     
