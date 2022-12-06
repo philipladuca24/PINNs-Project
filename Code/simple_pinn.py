@@ -61,7 +61,7 @@ def predict(params, X):
     """
     activations = X
     for w, b in params[:-1]:
-        activations = tanh(jnp.dot(activations, w) + b) # need to transpose weights? 
+        activations = tanh(jnp.dot(activations, w) + b) 
     final_w, final_b = params[-1]
     logits = jnp.sum(jnp.dot(activations, final_w) + final_b)
     return logits
