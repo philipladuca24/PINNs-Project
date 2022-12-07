@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
 
-# CLEAN UP CODE AND CONVERT EVERYTHING TO A CLASS INSTANCE
+# CLEAN UP CODE AND ADD DOCSTRINGS 
 
 def random_layer_params(m, n, key, scale):
     """
@@ -61,9 +61,10 @@ def predict(params, X):
     """
     activations = X
     for w, b in params[:-1]:
-        activations = tanh(jnp.dot(activations, w) + b) 
+        activations = tanh(jnp.dot(activations, w) + b) # need to transpose weights? 
     final_w, final_b = params[-1]
     logits = jnp.sum(jnp.dot(activations, final_w) + final_b)
+    print(logits.shape)
     return logits
 
 @jit
@@ -140,7 +141,7 @@ def loss_b(params):
 def loss(params, X, nu):
     lossf = loss_f(params, X, nu)
     lossb = loss_b(params)
-    return 0.01*lossb + lossf 
+    return lossb + lossf 
 
 ####### Hyperparameters ##################
 nu = 10 ** (-3)
@@ -151,7 +152,7 @@ opt_init, opt_update, get_params = optimizers.adam(5e-4)
 opt_state = opt_init(params)
 lb_list = []
 lf_list = []
-x = jnp.arange(-1, 1.1, 0.1)
+x = jnp.arange(-1, 1.05, 0.05)
 
 # we can try to increase the layer size or increase/ (decrease? this would put more focus on the boundry points)
 # the number of points being trained on, we can also try to include 1 in the arange, 
