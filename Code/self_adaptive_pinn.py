@@ -27,13 +27,14 @@ weights λr , λb , λ0 , i.e., the objective is: min max L(w, λr, λb, λ0).'
 
 In this 1D implementation, the self-adaptive weights are only defined for the upper and lower bound loss.
 
-Args:
+Args: # do 
     x_lb (int): x lower bound.
     x_ub (int): x upper bound.
     x (DeviceArray): Collocation points in the domain.
     layers (list[int]): Network architecture.
     nu (float): _description_
 """
+# do we need to modify the args above? 
 
 
 # ----------------------------------------------------------------------------------------------------------------
