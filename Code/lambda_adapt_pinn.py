@@ -19,7 +19,7 @@ respect to the network weights w, as usual, but is maximized with respect to the
 weights λr , λb , λ0 , i.e., the objective is: min max L(w, λr, λb, λ0).' 
 - L. D. McClenny, U. Braga-Neto 2022.
 
-In this 1D implementation, the self-adaptive weights are defined for boundary and residue only.
+In this 1D implementation, the self-adaptive weights are only defined for the upper and lower bound loss.
 
 Args:
     x_lb (int): x lower bound.
@@ -29,6 +29,9 @@ Args:
     nu (float): _description_
 """
 
+# ----------------------------------------------------------------------------------------------------------------
+# FEEDFORWARD NEURAL NETWORK ARCHITECTURE 
+# ----------------------------------------------------------------------------------------------------------------
 
 def random_layer_params(m, n, key, scale):
     """
@@ -80,12 +83,12 @@ def predict(params, X):
         Tracer of DeviceArray: Output predictions (u_pred)
     """
     activations = X
-    params = list(params)
     for w, b in params[:-1]:
-        activations = tanh(jnp.matmul(activations, w) + b)
+        activations = tanh(jnp.dot(activations, w) + b)
 
     final_w, final_b = params[-1]
-    return jnp.sum(jnp.matmul(activations, final_w) + final_b)
+    logits = jnp.sum(jnp.dot(activations, final_w) + final_b)
+    return logits
 
     # activations = X
     # params = list(params)
@@ -108,8 +111,8 @@ def net_u(params, X):
     Returns:
         Tracer of DeviceArray: u(x).
     """
-    X = jnp.array([X])
-    return predict(params, X)
+    x_array = jnp.array([X])
+    return predict(params, x_array)
 
 
 def net_ux(params):
@@ -125,7 +128,7 @@ def net_ux(params):
     """
 
     def ux(X):
-        return jacobian(net_u, argnums=1)(params, X)
+        return (grad(net_u, argnums=1)(params, X))[0]
 
     return jit(ux)
 
@@ -144,7 +147,7 @@ def net_uxx(params):
 
     def uxx(X):
         u_x = net_ux(params)
-        return jacobian(u_x)(X)
+        return grad(u_x)(X)
 
     return jit(uxx)
 
@@ -175,7 +178,7 @@ def loss_b(params, lambda_b):
     Returns:
         Tracer of DeviceArray: Boundary loss.
     """
-    loss_b = jnp.mean(lambda_b * ((net_u(params, lb) - 1) ** 2 + (net_u(params, ub)) ** 2))
+    loss_b = (net_u(params, lb) - 1) ** 2 + (net_u(params, ub)) ** 2
     return loss_b
 
 
@@ -198,7 +201,8 @@ def loss_f(params, X, nu, lambda_f):
     u_xx = vmap(u_xxf, (0))(X)
     fx = vmap(funx, (0))(X)
     res = nu * u_xx - u - fx
-    return jnp.mean(lambda_f * res ** 2)
+    loss_f = jnp.mean((res.flatten())**2)
+    return loss_f # how to do the loss properly
 
 
 @jit
@@ -218,7 +222,7 @@ def loss(params, X, nu, lambda_b, lambda_f):
     """
     lossf = loss_f(params, X, nu, lambda_f)
     lossb = loss_b(params, lambda_b)
-    return lossb + lossf
+    return 0.01*lossb + lossf
 
 @jit
 def optimise_net(istep: int, opt_state, X, lambda_b, lambda_f):
@@ -236,13 +240,14 @@ def optimise_net(istep: int, opt_state, X, lambda_b, lambda_f):
         (Tracer of) DeviceArray: Optimised network parameters.
     """
     params = get_params_net(opt_state)
-    g = jacobian(loss, allow_int=True)(params, X, nu, lambda_b, lambda_f)
+    #allow_int=True ?
+    g = grad(loss, argnums=0)(params, X, nu, lambda_b, lambda_f)
     return opt_update_net(istep, g, opt_state)
 
 @jit
-def optimise_lamb(istep: int, opt_state, X, lambda_b, lambda_f):
+def optimise_lamb(istep: int, params, X, opt_state, lambda_f):
     """
-    Computes gradients for self-adaptive weights and applies the optimizer (Adam) to the network.
+    Computes gradients for lower bound self-adaptive weight and applies the optimizer (Adam) to the network.
 
     Args:
         istep (int): Current iteration step number.
@@ -255,11 +260,11 @@ def optimise_lamb(istep: int, opt_state, X, lambda_b, lambda_f):
         (Tracer of) DeviceArray: Optimised network parameters.
     """
     lambda_b = get_params_lamb(opt_state)
-    g = jacobian(loss, argnums=3, allow_int=True)(params, X, nu, lambda_b, lambda_f)
+    g = grad(loss, argnums=3)(params, X, nu, lambda_b, lambda_f)
     return opt_update_lamb(istep, -g, opt_state)
 
 @jit
-def optimise_lamf(istep: int, opt_state, X, lambda_b, lambda_f):
+def optimise_lamf(istep: int, params, X, lambda_b, opt_state):
     """
     Computes gradients for self-adaptive weights and applies the optimizer (Adam) to the network.
 
@@ -274,7 +279,7 @@ def optimise_lamf(istep: int, opt_state, X, lambda_b, lambda_f):
         (Tracer of) DeviceArray: Optimised network parameters.
     """
     lambda_f = get_params_lamf(opt_state)
-    g = jacobian(loss, argnums=4, allow_int=True)(params, X, nu, lambda_b, lambda_f)
+    g = grad(loss, argnums=4)(params, X, nu, lambda_b, lambda_f)
     return opt_update_lamf(istep, -g, opt_state)
 
 @jit
@@ -301,6 +306,10 @@ def optimise_lbfgs(params, X, nu, lambda_b, lambda_f):
     return opt_params
 
 
+# ----------------------------------------------------------------------------------------------------------------
+# MODEL TRAINING
+# ----------------------------------------------------------------------------------------------------------------
+
 ####### Hyperparameters ##################
 nu = 10 ** (-3)
 layer_sizes = [1, 20, 20, 20, 1]
@@ -321,7 +330,7 @@ x = jnp.expand_dims(x, axis=1)
 
 # defining lambdas
 NF = x.shape[0]
-lambda_f = jnp.squeeze(jnp.array(jnp.reshape(np.repeat(100, NF), (NF, -1))), 1)
+lambda_f = jnp.squeeze(random.uniform(random.PRNGKey(0), shape=[NF, 1]), 1)
 lambda_b = jnp.squeeze(random.uniform(random.PRNGKey(0), shape=[NF, 1]), 1)
 
 
@@ -340,13 +349,15 @@ opt_state_lamf = opt_init_lamf(lambda_f)
 
 for it in pbar:
     opt_state_net = optimise_net(it, opt_state_net, x, lambda_b, lambda_f)
-    opt_state_lamb = optimise_lamb(it, opt_state_lamb, x, lambda_b, lambda_f)
-    opt_state_lamf = optimise_lamf(it, opt_state_lamf, x, lambda_b, lambda_f)
+    opt_state_lamb = optimise_lamb(it, params, x, opt_state_lamb, lambda_f)
+    opt_state_lamf = optimise_lamf(it, params, x, lambda_b, opt_state_lamf)
 
     if it % 1 == 0:
-        opt_params_net = get_params_net(opt_state_net)
-        l_b = loss_b(opt_params_net, lambda_b)
-        l_f = loss_f(opt_params_net, x, nu, lambda_f)
+        params = get_params_net(opt_state_net)
+        lambda_b = get_params_lamb(opt_state_lamb)
+        lambda_f = get_params_lamf(opt_state_lamf)
+        l_b = loss_b(params, lambda_b)
+        l_f = loss_f(params, x, nu, lambda_f)
         pbar.set_postfix({"Loss_res": l_f, "loss_bound": l_b})
         lb_list.append(l_b)
         lf_list.append(l_f)
@@ -354,7 +365,7 @@ for it in pbar:
 init_guess = [lb_list[-1]+ lf_list[-1], None]
 print(init_guess)
 # fin_params = optimise_lbfgs(opt_params_net, x, nu, opt_state_lamb, opt_state_lamf)
-u_pred = vmap(predict, (None, 0))(opt_params_net, x)
+u_pred = vmap(predict, (None, 0))(params, x)
 
 plt.plot(x, u_pred)
 plt.show()

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
 
-# CLEAN UP CODE AND ADD DOCSTRINGS 
+
 
 def random_layer_params(m, n, key, scale):
     """
@@ -181,9 +181,19 @@ for it in pbar:
 
 u_pred = vmap(predict, (None, 0))(params, x)
 
-plt.plot(x, u_pred)
-# plt.plot(nIter, lb_list)
-# plt.plot(nIter, lf_list)
+# PLOTTING
+
+fig, axs = plt.subplots(1, 2)
+axs[0].plot(x, u_pred)
+axs[0].set_title('Simple PINN Proposed Solution')
+axs[0].set_xlabel("x")
+axs[0].set_ylabel("Predicted u(x)")
+axs[1].plot(lb_list, label='Boundary loss')
+axs[1].plot(lf_list, label='Residue loss')
+axs[1].set_xlabel("Epoch")
+axs[1].set_ylabel("Loss")
+axs[1].legend()
+axs[1].set_title('Residue and Function Loss vs. Epochs')
 plt.show()
 
 
