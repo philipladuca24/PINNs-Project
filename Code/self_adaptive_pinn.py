@@ -298,7 +298,15 @@ def step_ub(istep, params, X, lb, opt_state):
 
 
 def param_flatten(params):
-    # PHILIP ADD DOCSTRINGS HERE 
+    """
+    Converts the parameters into a 1D array.
+
+    Args:
+        params (list[DeviceArray]): list containing weights and biases.
+        
+    Returns:
+        jnp.array(): 1D jnp array.
+    """
     params_new = jnp.array([])
     for m in range(4):
         for y in range(2):
@@ -309,6 +317,16 @@ def param_flatten(params):
 
 
 def param_reshape(params, sizes):
+    """
+    Converts a 1D list of parameters into a shape which will work with the dense layers.
+
+    Args:
+        params (jnp.array()): 1D list containing weights and biases.
+        sizes ([]): 1D array which contains the sizes of the dense layers
+        
+    Returns:
+        jnp.array(): jnp array containing weights and biases shaped to work with dense layers
+    """
     params_re = []
     for m, n in zip(sizes[:-1], sizes[1:]):
         a = params[:m*n]
@@ -320,11 +338,40 @@ def param_reshape(params, sizes):
 
 
 def loss_scipy(params, X, nu, l_lb, l_ub, sizes):
+    """
+    Calculates loss function when being passes in a 1D array for the params.
+
+    Args:
+        params (jnp.array()): 1D list containing weights and biases.
+        X (Tracer of DeviceArray): Collocation points in the domain.
+        nu (Tracer of float): _description_
+        l_lb (Tracer of DeviceArray): Self-adaptive weight for the lower bound loss.
+        l_ub (Tracer of DeviceArray): Self-adaptive weight for the upper bound loss.
+        sizes ([]): 1D array which contains the sizes of the dense layers
+        
+    Returns:
+        Tracer of DeviceArray: Total loss matrix.
+    """
     params_re = param_reshape(params, sizes)
     return loss(params_re, X, nu, l_lb, l_ub)
 
 
-def minimize_lbfgs(params, X, nu, lb, ub, sizes): 
+def minimize_lbfgs(params, X, nu, lb, ub, sizes):
+    """
+    Training step that computes gradients for network weights and applies the L-BFGS optimization
+    to the network.
+
+    Args:
+        params (jnp.array()): 1D list containing weights and biases.
+        X (Tracer of DeviceArray): Collocation points in the domain.
+        nu (Tracer of float): _description_
+        l_lb (Tracer of DeviceArray): Self-adaptive weight for the lower bound loss.
+        l_ub (Tracer of DeviceArray): Self-adaptive weight for the upper bound loss.
+        sizes ([]): 1D array which contains the sizes of the dense layers
+        
+    Returns:
+        (Tracer of) DeviceArray: Optimised network parameters.
+    """
     minimizer = jaxopt.LBFGS(fun=loss_scipy, jit=False)
     opt_params = minimizer.run(params, X, nu, lb, ub, sizes)
     opt_params = opt_params.params
