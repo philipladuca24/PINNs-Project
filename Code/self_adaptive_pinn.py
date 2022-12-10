@@ -279,7 +279,7 @@ def step_lb(istep, params, X, opt_state, ub):
 @jit
 def step_ub(istep, params, X, lb, opt_state):
     """
-   Training step that computes gradients for self-adaptive weight for upper bound and
+    Training step that computes gradients for self-adaptive weight for upper bound and
     applies the optimizer (Adam) to the network.
 
     Args:
