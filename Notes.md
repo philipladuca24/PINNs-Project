@@ -2,7 +2,7 @@
 
 ## Self-adaptive PINNs
 
-- Try and solve the optimiser issues.
+- L-BFGS-B optimizer not working within jit.
 
 ## No data PINNs
 
@@ -25,22 +25,6 @@ the terminal. Might need to implement a REPL.
 - Need to restructure code into classes to allow this. Current code slightly unreadable.
 - Incomplete burgers_model.py revamp.
 - runner.py hasn't been started.
-
-## Integrate burgers_preprocessing.py and visualiser.py into runner.py
-
-- burgers_preprocessing.py complete, needs integration.
-- visualiser.py structurally complete still needs to be debugged (see Debugging.md). Needs integration.
-- Currently all of preprocessing runs in one go, as soon as the class is instantiated all the
-variables are populated. Perhaps break into separate functions, and only call the portion that is 
-needed as needed. 
-- Perhaps functions in runner can be moved out? Move gradients out, move loss functions out, etc (like
-how we did Beras) and only leave in the REPL (not built yet) the model runner, and the load/save methods
-(not yet implemented).
-
-## REPL
-
-- Need to build REPL to allow toggling between retraining and loadine from terminal. 
-- See HW5 or SearchEngine (from CSCI 0200). 
 
 ## Generate docstrings!
 
