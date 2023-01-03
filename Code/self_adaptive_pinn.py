@@ -11,7 +11,7 @@ from jaxopt import ScipyMinimize
 from jax.scipy.optimize import minimize
 from functools import partial
 
-#pip install jaxopt
+# pip install jaxopt
 import jaxopt
 
 
@@ -30,9 +30,10 @@ and lower bound loss.
 """
 
 
-####################################################### 
+#######################################################
 ###     FEEDFORWARD NEURAL NETWORK ARCHITECTURE     ###
 #######################################################
+
 
 def random_layer_params(m, n, key, scale):
     """
@@ -85,7 +86,7 @@ def predict(params, X):
     """
     activations = X
     for w, b in params[:-1]:
-        activations = tanh(jnp.dot(activations, w) + b) 
+        activations = tanh(jnp.dot(activations, w) + b)
     final_w, final_b = params[-1]
     logits = jnp.sum(jnp.dot(activations, final_w) + final_b)
     return logits
@@ -118,9 +119,10 @@ def net_ux(params):
     Returns:
         (Tracer of) DeviceArray: u'(x).
     """
+
     def ux(X):
         return grad(net_u, argnums=1)(params, X)
-    
+
     return jit(ux)
 
 
@@ -135,9 +137,11 @@ def net_uxx(params):
     Returns:
         (Tracer of) DeviceArray: u''(x).
     """
+
     def uxx(X):
         u_x = net_ux(params)
-        return grad(u_x)(X) 
+        return grad(u_x)(X)
+
     return jit(uxx)
 
 
@@ -154,6 +158,7 @@ def funx(X):
     """
     return jnp.exp(X)
 
+
 @jit
 def loss_f(params, X, nu):
     """
@@ -167,7 +172,7 @@ def loss_f(params, X, nu):
     Returns:
         (Tracer of) DeviceArray: Residual loss.
     """
-    u = vmap(net_u, (None, 0))(params, X) 
+    u = vmap(net_u, (None, 0))(params, X)
     u_xxf = net_uxx(params)
     u_xx = vmap(u_xxf, (0))(X)
     fx = vmap(funx, (0))(X)
@@ -176,7 +181,7 @@ def loss_f(params, X, nu):
     return loss_f
 
 
-@jit 
+@jit
 def loss_lb(params):
     """
     Calculates the lower bound loss.
@@ -187,11 +192,11 @@ def loss_lb(params):
     Returns:
         (Tracer of) DeviceArray: Lower bound loss.
     """
-    loss_lb = (net_u(params, -1)-1) ** 2 
+    loss_lb = (net_u(params, -1) - 1) ** 2
     return loss_lb
 
 
-@jit 
+@jit
 def loss_ub(params):
     """
     Calculates the upper bound loss.
@@ -258,7 +263,7 @@ def step_lb(istep, params, X, opt_state, ub):
         istep (int): Current iteration step number.
         params (Tracer of list[DeviceArray]): List containing weights and biases.
         X (Tracer of DeviceArray): Collocation points in the domain.
-        opt_state (Tracer of OptimizerState): Optimised SA-Weight for lower bound loss. 
+        opt_state (Tracer of OptimizerState): Optimised SA-Weight for lower bound loss.
         ub (Tracer of DeviceArray): SA-Weight for the upper bound loss.
 
     Returns:
@@ -280,7 +285,7 @@ def step_ub(istep, params, X, lb, opt_state):
         params (Tracer of list[DeviceArray]): List containing weights and biases.
         X (Tracer of DeviceArray): Collocation points in the domain.
         lb (Tracer of DeviceArray): SA-Weight for the lower bound loss.
-        opt_state (Tracer of OptimizerState): Optimised SA-Weight for upper bound loss. 
+        opt_state (Tracer of OptimizerState): Optimised SA-Weight for upper bound loss.
 
     Returns:
         (Tracer of) DeviceArray: Optimised SA-Weight for upper bound.
@@ -296,7 +301,7 @@ def param_flatten(params):
 
     Args:
         params (list[DeviceArray]): List containing weights and biases.
-        
+
     Returns:
         jnpArray: A flattened jnpArray (1D).
     """
@@ -304,7 +309,7 @@ def param_flatten(params):
     for m in range(4):
         for y in range(2):
             a = jnp.ravel(params[m][y])
-            params_new = jnp.concatenate([params_new,a])
+            params_new = jnp.concatenate([params_new, a])
     params_new = jnp.array(params_new)
     return params_new
 
@@ -316,18 +321,18 @@ def param_reshape(params, sizes):
     Args:
         params (jnpArray): 1D array containing weights and biases.
         sizes (list[int]): Network architecture.
-        
+
     Returns:
-        jnpArray: A jnpArray containing weights and biases reshaped for compatibility 
+        jnpArray: A jnpArray containing weights and biases reshaped for compatibility
         with the dense layers.
     """
     params_re = []
     for m, n in zip(sizes[:-1], sizes[1:]):
-        a = params[:m*n]
+        a = params[: m * n]
         a = jnp.reshape(a, (m, n))
-        b = params[m*n:m*n + n]
-        params = params[m*n + n :]
-        params_re.append((jnp.array(a),jnp.array(b)))
+        b = params[m * n : m * n + n]
+        params = params[m * n + n :]
+        params_re.append((jnp.array(a), jnp.array(b)))
     return params_re
 
 
@@ -342,7 +347,7 @@ def loss_scipy(params, X, nu, l_lb, l_ub, sizes):
         l_lb (Tracer of DeviceArray): SA-Weight for the lower bound loss.
         l_ub (Tracer of DeviceArray): SA-Weight for the upper bound loss.
         sizes (list[int]): Network architecture.
-        
+
     Returns:
         (Tracer of) DeviceArray: Total loss matrix.
     """
@@ -362,7 +367,7 @@ def minimize_lbfgs(params, X, nu, lb, ub, sizes):
         l_lb (Tracer of DeviceArray): SA-Weight for the lower bound loss.
         l_ub (Tracer of DeviceArray): SA-Weight for the upper bound loss.
         sizes (list[int]): Network architecture.
-        
+
     Returns:
         (Tracer of) DeviceArray: Optimised network parameters.
     """
@@ -371,7 +376,8 @@ def minimize_lbfgs(params, X, nu, lb, ub, sizes):
     opt_params = opt_params.params
     return opt_params
 
-####################################################### 
+
+#######################################################
 ###              MODEL HYPERPARAMETERS              ###
 #######################################################
 
@@ -397,8 +403,8 @@ Weights and Biases:
     lambda_ub (DeviceArray[float]): Initialised upper bound SA-Weight.
 """
 
-params = init_network_params(layer_sizes, random.PRNGKey(0)) 
-lambda_lb = random.uniform(random.PRNGKey(0), shape=[1]) 
+params = init_network_params(layer_sizes, random.PRNGKey(0))
+lambda_lb = random.uniform(random.PRNGKey(0), shape=[1])
 lambda_ub = random.uniform(random.PRNGKey(0), shape=[1])
 
 """
@@ -420,19 +426,19 @@ opt_state_lb = opt_init_lb(lambda_lb)
 opt_init_ub, opt_update_ub, get_params_ub = optimizers.adam(5e-4)
 opt_state_ub = opt_init_ub(lambda_ub)
 
-# lists for upper bound, lower bound, and residue loss values during training.
+# lists for upper bound, lower bound, and residual loss values during training.
 l_lb_list = []
 l_ub_list = []
 lf_list = []
 
-# lists for upper and lower SA-Weight values during training. 
+# lists for upper and lower SA-Weight values during training.
 lam_lb_list = []
 lam_ub_list = []
 
-# Generation of 'input data', known as collocation points. 
+# Generation of 'input data', known as collocation points.
 x = jnp.arange(-1, 1.05, 0.05)
 
-####################################################### 
+#######################################################
 ###                  MODEL TRAINING                 ###
 #######################################################
 
@@ -458,7 +464,7 @@ for it in pbar:
         lam_lb_list.append(lambda_lb)
         lam_ub_list.append(lambda_ub)
 
-####################################################### 
+#######################################################
 ###          FINAL PARAMETER OPTIMIZATION           ###
 #######################################################
 
@@ -466,39 +472,39 @@ params_new = param_flatten(params)
 params_min = minimize_lbfgs(params_new, x, nu, lambda_lb, lambda_ub, layer_sizes)
 params_mini = param_reshape(params_min, layer_sizes)
 
-# final prediction of u(x) 
+# final prediction of u(x)
 u_pred = vmap(predict, (None, 0))(params_mini, x)
 
-####################################################### 
+#######################################################
 ###                     PLOTTING                    ###
 #######################################################
 
 fig, axs = plt.subplots(1, 3)
 
 axs[0].plot(x, u_pred, label="'$\lambda_1$': 1.873, '$\lambda_2$': 2.326")
-axs[0].set_title('Self-Adaptive PINN Proposed Solution')
+axs[0].set_title("Self-Adaptive PINN Proposed Solution")
 axs[0].set_xlabel("x")
 axs[0].set_ylabel("Predicted u(x)")
 axs[0].legend()
 
-axs[1].plot(l_lb_list, label='Lower Bound loss')
+axs[1].plot(l_lb_list, label="Lower Bound loss")
 axs[1].plot(l_ub_list, label="Upper Bound loss")
-axs[1].plot(lf_list, label='Residue loss')
+axs[1].plot(lf_list, label="Residue loss")
 axs[1].set_xlabel("Epoch")
 axs[1].set_ylabel("Loss")
 axs[1].legend()
-axs[1].set_title('Residue and Function Loss vs. Epochs')
+axs[1].set_title("Residue and Function Loss vs. Epochs")
 
 axs[2].plot(lam_lb_list, label="'$\lambda_1$': Lower bound penalty", color="blue")
 axs[2].plot(lam_ub_list, label="'$\lambda_2$': Upper bound penalty", color="purple")
 axs[2].set_xlabel("Epoch")
 axs[2].set_ylabel("Lambda value")
 axs[2].legend()
-axs[2].set_title('Optimised Lambda Values vs. Epochs')
+axs[2].set_title("Optimised Lambda Values vs. Epochs")
 
 plt.show()
 
-####################################################### 
+#######################################################
 ###   FINAL LAMBDAS, LOSSES, AND OPTIMIZED LOSSES   ###
 #######################################################
 
