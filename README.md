@@ -3,9 +3,7 @@
 
 ## Introduction
 Physics Informed Neural Networks (PINNs), originally proposed in the paper “Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations” by Raissi, Perdikaris, and Karniadakis, are domain-informed neural models that can approximate solutions to partial differential equations (PDEs). By imposing known physical laws onto the neural network the solution space can be restricted to the governing equation, decreasing training time, data requirements, and encoding the physical laws into the model. This paper became the basis for the first portion of this project (simple_pinn.py), with Self-Adaptive PINNs (SA-PINNs) forming the second (self_adaptive_pinn.py). 
----
 SA-PINNs, as proposed in the paper “Self-Adaptive Physics-Informed Neural Networks using a Soft Attention Mechanism” by McClenny, and Braga-Neto extend on the work of a simple PINN by adding a self-adaptive element which optimally regularises the components of the implemented loss function. Notably, SA-PINNs automate a process which hitherto was done by trial and error, or from information on the optimal solution known before training. The addition of the self-adaptive component further improves on the strengths of PINNs, the decreased training time, data requirements, and encoded physical laws. 
----
 PINNs have emerged as an application of deep learning in computational sciences, outperforming previous solvers across the aforementioned metrics. 
 
 ## Methodology
@@ -46,6 +44,7 @@ Assessing the loss associated with the models leads to further insight. Table 1 
 |Lower bound loss|1.09e-5*|4.85e-4|4.60e-12|
 |Residual (training)|3.50e-6|1.83e-5|2.18e-6|
 |Residual (testing)|1.57e-3|3.88e-4|3.94e-4|
+
 Table 1: Loss values
 *combined loss for both boundaries
 
