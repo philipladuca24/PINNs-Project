@@ -2,8 +2,8 @@
 - M. Beekenkamp, A. Bhagavathula, P. LaDuca.
 
 ## Introduction
-Physics Informed Neural Networks (PINNs), originally proposed in the paper “Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations” by Raissi, Perdikaris, and Karniadakis, are domain-informed neural models that can approximate solutions to partial differential equations (PDEs). By imposing known physical laws onto the neural network the solution space can be restricted to the governing equation, decreasing training time, data requirements, and encoding the physical laws into the model. This paper became the basis for the first portion of this project (simple_pinn.py), with Self-Adaptive PINNs (SA-PINNs) forming the second (self_adaptive_pinn.py). 
-SA-PINNs, as proposed in the paper “Self-Adaptive Physics-Informed Neural Networks using a Soft Attention Mechanism” by McClenny, and Braga-Neto extend on the work of a simple PINN by adding a self-adaptive element which optimally regularises the components of the implemented loss function. Notably, SA-PINNs automate a process which hitherto was done by trial and error, or from information on the optimal solution known before training. The addition of the self-adaptive component further improves on the strengths of PINNs, the decreased training time, data requirements, and encoded physical laws. 
+Physics Informed Neural Networks (PINNs), originally proposed in the paper “Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations” by Raissi, Perdikaris, and Karniadakis, are domain-informed neural models that can approximate solutions to partial differential equations (PDEs). By imposing known physical laws onto the neural network the solution space can be restricted to the governing equation, decreasing training time, data requirements, and encoding the physical laws into the model. This paper became the basis for the first portion of this project (simple_pinn.py), with Self-Adaptive PINNs (SA-PINNs) forming the second (self_adaptive_pinn.py). <br>
+SA-PINNs, as proposed in the paper “Self-Adaptive Physics-Informed Neural Networks using a Soft Attention Mechanism” by McClenny, and Braga-Neto extend on the work of a simple PINN by adding a self-adaptive element which optimally regularises the components of the implemented loss function. Notably, SA-PINNs automate a process which hitherto was done by trial and error, or from information on the optimal solution known before training. The addition of the self-adaptive component further improves on the strengths of PINNs, the decreased training time, data requirements, and encoded physical laws. <br>
 PINNs have emerged as an application of deep learning in computational sciences, outperforming previous solvers across the aforementioned metrics. 
 
 ## Methodology
@@ -24,7 +24,7 @@ The SA-PINN differs from a simple PINN here by automatically regularising bounda
 $$Loss = MSE_{residual} + \lambda_1 MSE_{lower bound} + \lambda_2 MSE_{upper bound}$$
 
 ## Results
-Since our model currently does not require data, we can not assess the accuracy of the model based on labels as is done when using data inputs. Instead, due to the model being constrained by the differential equation we are looking to solve, loss is a good metric for accuracy since it directly relates how well the output of our model follows the differential equation. Calculating the loss of a set of points much larger than the training collocation points allows for the assessment of how well the model is able to interpolate the function. 
+Since our model currently does not require data, we can not assess the accuracy of the model based on labels as is done when using data inputs. Instead, due to the model being constrained by the differential equation we are looking to solve, loss is a good metric for accuracy since it directly relates how well the output of our model follows the differential equation. Calculating the loss of a set of points much larger than the training collocation points allows for the assessment of how well the model is able to interpolate the function. <br>
 It is important to note the impact collocation points have on the results of this model. Using a greater number of collocation points allows for the model to create smoother curves which will reduce the loss. Less collocation points makes it harder to learn the solution, especially for solutions with large changes in gradient. The number of collocation points is analogous to the amount of data given to the model. Additionally, since the output is a graph, we can qualitatively check how well the output solution matches to the theoretical solution.
 
 <img src="Images/actual_solution.jpg" height="300">
@@ -45,7 +45,7 @@ Assessing the loss associated with the models leads to further insight. Table 1 
 |Residual (training)|3.50e-6|1.83e-5|2.18e-6|
 |Residual (testing)|1.57e-3|3.88e-4|3.94e-4|
 
-Table 1: Loss values
+Table 1: Loss values <br>
 *combined loss for both boundaries
 
 
