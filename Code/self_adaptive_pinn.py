@@ -16,34 +16,27 @@ import jaxopt
 
 
 """
-Dynamically adapts the weighting (lambda) of the different components of the loss function.
-ie train Self-Adaptation Weights for the initial, boundary, and residue points, as well as 
-the network weights.
+Self-Adaptive PINNs (SA-PINNs) dynamically adapt the weighting (lambda) of the different components
+of the loss function. This is achieved by training the Self-Adaptation Weights for the initial, 
+boundary, and residual points, as well as the network weights.
 
 'A key feature of self-adaptive PINNs is that the loss L(w, λr, λb, λ0) is minimized with 
 respect to the network weights w, as usual, but is maximized with respect to the self-adaptation
 weights λr , λb , λ0 , i.e., the objective is: min max L(w, λr, λb, λ0).' 
 - L. D. McClenny, U. Braga-Neto 2022.
 
-In this 1D implementation, the self-adaptive weights are only defined for the upper and lower bound loss.
-
-Args: # do 
-    x_lb (int): x lower bound.
-    x_ub (int): x upper bound.
-    x (DeviceArray): Collocation points in the domain.
-    layers (list[int]): Network architecture.
-    nu (float): _description_
+In this 1D time independent implementation, the SA-Weights are only defined for the upper
+and lower bound loss.
 """
-# do we need to modify the args above? 
 
 
-# ----------------------------------------------------------------------------------------------------------------
-# FEEDFORWARD NEURAL NETWORK ARCHITECTURE 
-# ----------------------------------------------------------------------------------------------------------------
+####################################################### 
+###     FEEDFORWARD NEURAL NETWORK ARCHITECTURE     ###
+#######################################################
 
 def random_layer_params(m, n, key, scale):
     """
-    A helper function to randomly initialize weights and biases for a
+    An init_network_params helper function to randomly initialize weights and biases for a
     dense neural network layer.
 
     Args:
@@ -61,8 +54,8 @@ def random_layer_params(m, n, key, scale):
 
 def init_network_params(sizes, key):
     """
-    Initialize all layers for a fully-connected neural network with
-    sizes "sizes".
+    Initializes all layers for a fully-connected neural network with
+    size "sizes".
 
     Args:
         sizes (list[int]): Network architecture.
@@ -85,10 +78,10 @@ def predict(params, X):
 
     Args:
         params (Tracer of list[DeviceArray[float]]): List containing weights and biases.
-        X (Tracer of DeviceArray): Single point in the domain.
+        X (Tracer of DeviceArray): Collocation points in the domain.
 
     Returns:
-        Tracer of DeviceArray: Output predictions (u_pred)
+        (Tracer of) DeviceArray: Output predictions (u_pred).
     """
     activations = X
     for w, b in params[:-1]:
@@ -101,14 +94,14 @@ def predict(params, X):
 @jit
 def net_u(params, X):
     """
-    Define neural network for u(x).
+    Defines neural network for u(x).
 
     Args:
         params (Tracer of list[DeviceArray]): List containing weights and biases.
         X (Tracer of DeviceArray): Collocation points in the domain.
 
     Returns:
-        Tracer of DeviceArray: u(x).
+        (Tracer of) DeviceArray: u(x).
     """
     x_array = jnp.array([X])
     return predict(params, x_array)
@@ -116,14 +109,14 @@ def net_u(params, X):
 
 def net_ux(params):
     """
-    Define neural network for first spatial derivative of u(x): u'(x).
+    Defines neural network for first spatial derivative of u(x): u'(x).
 
     Args:
         params (Tracer of list[DeviceArray]): List containing weights and biases.
         X (Tracer of DeviceArray): Collocation points in the domain.
 
     Returns:
-        Tracer of DeviceArray: u'(x).
+        (Tracer of) DeviceArray: u'(x).
     """
     def ux(X):
         return grad(net_u, argnums=1)(params, X)
@@ -133,14 +126,14 @@ def net_ux(params):
 
 def net_uxx(params):
     """
-    Define neural network for second spatial derivative of u(x): u''(x).
+    Defines neural network for second spatial derivative of u(x): u''(x).
 
     Args:
         params (Tracer of list[DeviceArray]): List containing weights and biases.
         X (Tracer of DeviceArray): Collocation points in the domain.
 
     Returns:
-        Tracer of DeviceArray: u''(x).
+        (Tracer of) DeviceArray: u''(x).
     """
     def uxx(X):
         u_x = net_ux(params)
@@ -157,22 +150,22 @@ def funx(X):
         X (Tracer of DeviceArray): Collocation points in the domain.
 
     Returns:
-        Tracer of DeviceArray: Elementwise exponent of X
+        (Tracer of) DeviceArray: Elementwise exponent of X.
     """
     return jnp.exp(X)
 
 @jit
 def loss_f(params, X, nu):
     """
-    Calculates our reside loss.
+    Calculates our residual loss.
 
     Args:
-        params (Tracer of list[DeviceArray]): list containing weights and biases.
+        params (Tracer of list[DeviceArray]): List containing weights and biases.
         X (Tracer of DeviceArray): Collocation points in the domain.
-        nu (Tracer of float): _description_
+        nu (Tracer of float): Multiplicative constant.
 
     Returns:
-        Tracer of DeviceArray: Residue loss.
+        (Tracer of) DeviceArray: Residual loss.
     """
     u = vmap(net_u, (None, 0))(params, X) 
     u_xxf = net_uxx(params)
@@ -189,10 +182,10 @@ def loss_lb(params):
     Calculates the lower bound loss.
 
     Args:
-        params (Tracer of list[DeviceArray]): list containing weights and biases.
+        params (Tracer of list[DeviceArray]): List containing weights and biases.
 
     Returns:
-        Tracer of DeviceArray: Lower bound loss.
+        (Tracer of) DeviceArray: Lower bound loss.
     """
     loss_lb = (net_u(params, -1)-1) ** 2 
     return loss_lb
@@ -204,10 +197,10 @@ def loss_ub(params):
     Calculates the upper bound loss.
 
     Args:
-        params (Tracer of list[DeviceArray]): list containing weights and biases.
+        params (Tracer of list[DeviceArray]): List containing weights and biases.
 
     Returns:
-        Tracer of DeviceArray: Lower bound loss.
+        (Tracer of) DeviceArray: Lower bound loss.
     """
     loss_ub = (net_u(params, 1)) ** 2
     return loss_ub
@@ -216,17 +209,17 @@ def loss_ub(params):
 @jit
 def loss(params, X, nu, l_lb, l_ub):
     """
-    Combines the lower bound, upper bound, and residue loss into a single loss matrix.
+    Combines the lower bound, upper bound, and residual loss into a single loss matrix.
 
     Args:
-        params (Tracer of list[DeviceArray]): list containing weights and biases.
+        params (Tracer of list[DeviceArray]): List containing weights and biases.
         X (Tracer of DeviceArray): Collocation points in the domain.
-        nu (Tracer of float): _description_
-        l_lb (Tracer of DeviceArray): Self-adaptive weight for the lower bound loss.
-        l_ub (Tracer of DeviceArray): Self-adaptive weight for the upper bound loss.
+        nu (Tracer of float): Multiplicative constant.
+        l_lb (Tracer of DeviceArray): SA-Weight for the lower bound loss.
+        l_ub (Tracer of DeviceArray): SA-Weight for the upper bound loss.
 
     Returns:
-        Tracer of DeviceArray: Total loss matrix.
+        (Tracer of) DeviceArray: Total loss matrix.
     """
     lossf = loss_f(params, X, nu)
     losslb = loss_lb(params)
@@ -237,15 +230,15 @@ def loss(params, X, nu, l_lb, l_ub):
 @jit
 def step_param(istep, opt_state, X, lb, ub):
     """
-    Training step that computes gradients for network weights and applies the optimizer 
-    (Adam) to the network.
+    Training step that computes gradients for network weights and applies the Adam
+    optimizer to the network.
 
     Args:
         istep (int): Current iteration step number.
         opt_state (Tracer of OptimizerState): Optimised network parameters.
         X (Tracer of DeviceArray): Collocation points in the domain.
-        lb (Tracer of DeviceArray): Self-adaptive weight for the lower bound loss.
-        ub (Tracer of DeviceArray): Self-adaptive weight for the upper bound loss.
+        lb (Tracer of DeviceArray): SA-Weight for the lower bound loss.
+        ub (Tracer of DeviceArray): SA-Weight for the upper bound loss.
 
     Returns:
         (Tracer of) DeviceArray: Optimised network parameters.
@@ -258,18 +251,18 @@ def step_param(istep, opt_state, X, lb, ub):
 @jit
 def step_lb(istep, params, X, opt_state, ub):
     """
-    Training step that computes gradients for self-adaptive weight for lower bound and
-    applies the optimizer (Adam) to the network.
+    Training step that computes gradients for SA-Weight for lower bound and
+    applies the Adam optimizer to the network.
 
     Args:
         istep (int): Current iteration step number.
-        params (Tracer of list[DeviceArray]): list containing weights and biases.
+        params (Tracer of list[DeviceArray]): List containing weights and biases.
         X (Tracer of DeviceArray): Collocation points in the domain.
-        opt_state (Tracer of OptimizerState): Optimised self-adaptive weight for lower bound loss. 
-        ub (Tracer of DeviceArray): Self-adaptive weight for the upper bound loss.
+        opt_state (Tracer of OptimizerState): Optimised SA-Weight for lower bound loss. 
+        ub (Tracer of DeviceArray): SA-Weight for the upper bound loss.
 
     Returns:
-        (Tracer of) DeviceArray: Optimised self-adaptive weight for lower bound.
+        (Tracer of) DeviceArray: Optimised SA-Weight for lower bound.
     """
     lb = get_params_lb(opt_state)
     g = grad(loss, argnums=3)(params, X, nu, lb, ub)
@@ -279,18 +272,18 @@ def step_lb(istep, params, X, opt_state, ub):
 @jit
 def step_ub(istep, params, X, lb, opt_state):
     """
-    Training step that computes gradients for self-adaptive weight for upper bound and
-    applies the optimizer (Adam) to the network.
+    Training step that computes gradients for SA-Weight for upper bound and
+    applies the Adam optimizer to the network.
 
     Args:
         istep (int): Current iteration step number.
-        params (Tracer of list[DeviceArray]): list containing weights and biases.
+        params (Tracer of list[DeviceArray]): List containing weights and biases.
         X (Tracer of DeviceArray): Collocation points in the domain.
-        lb (Tracer of DeviceArray): Self-adaptive weight for the lower bound loss.
-        opt_state (Tracer of OptimizerState): Optimised self-adaptive weight for upper bound loss. 
+        lb (Tracer of DeviceArray): SA-Weight for the lower bound loss.
+        opt_state (Tracer of OptimizerState): Optimised SA-Weight for upper bound loss. 
 
     Returns:
-        (Tracer of) DeviceArray: Optimised self-adaptive weight for upper bound.
+        (Tracer of) DeviceArray: Optimised SA-Weight for upper bound.
     """
     ub = get_params_ub(opt_state)
     g = grad(loss, argnums=4)(params, X, nu, lb, ub)
@@ -302,10 +295,10 @@ def param_flatten(params):
     Converts the parameters into a 1D array.
 
     Args:
-        params (list[DeviceArray]): list containing weights and biases.
+        params (list[DeviceArray]): List containing weights and biases.
         
     Returns:
-        jnp.array(): 1D jnp array.
+        jnpArray: A flattened jnpArray (1D).
     """
     params_new = jnp.array([])
     for m in range(4):
@@ -318,14 +311,15 @@ def param_flatten(params):
 
 def param_reshape(params, sizes):
     """
-    Converts a 1D list of parameters into a shape which will work with the dense layers.
+    Converts a 1D list of parameters reshaped for compatibility with the network architecture.
 
     Args:
-        params (jnp.array()): 1D list containing weights and biases.
-        sizes ([]): 1D array which contains the sizes of the dense layers
+        params (jnpArray): 1D array containing weights and biases.
+        sizes (list[int]): Network architecture.
         
     Returns:
-        jnp.array(): jnp array containing weights and biases shaped to work with dense layers
+        jnpArray: A jnpArray containing weights and biases reshaped for compatibility 
+        with the dense layers.
     """
     params_re = []
     for m, n in zip(sizes[:-1], sizes[1:]):
@@ -342,15 +336,15 @@ def loss_scipy(params, X, nu, l_lb, l_ub, sizes):
     Calculates loss function when being passes in a 1D array for the params.
 
     Args:
-        params (jnp.array()): 1D list containing weights and biases.
+        params (jnpArray): jnpArray containing weights and biases.
         X (Tracer of DeviceArray): Collocation points in the domain.
-        nu (Tracer of float): _description_
-        l_lb (Tracer of DeviceArray): Self-adaptive weight for the lower bound loss.
-        l_ub (Tracer of DeviceArray): Self-adaptive weight for the upper bound loss.
-        sizes ([]): 1D array which contains the sizes of the dense layers
+        nu (Tracer of float): Multiplicative constant.
+        l_lb (Tracer of DeviceArray): SA-Weight for the lower bound loss.
+        l_ub (Tracer of DeviceArray): SA-Weight for the upper bound loss.
+        sizes (list[int]): Network architecture.
         
     Returns:
-        Tracer of DeviceArray: Total loss matrix.
+        (Tracer of) DeviceArray: Total loss matrix.
     """
     params_re = param_reshape(params, sizes)
     return loss(params_re, X, nu, l_lb, l_ub)
@@ -362,12 +356,12 @@ def minimize_lbfgs(params, X, nu, lb, ub, sizes):
     to the network.
 
     Args:
-        params (jnp.array()): 1D list containing weights and biases.
+        params (jnpArray): jnpArray containing weights and biases.
         X (Tracer of DeviceArray): Collocation points in the domain.
-        nu (Tracer of float): _description_
-        l_lb (Tracer of DeviceArray): Self-adaptive weight for the lower bound loss.
-        l_ub (Tracer of DeviceArray): Self-adaptive weight for the upper bound loss.
-        sizes ([]): 1D array which contains the sizes of the dense layers
+        nu (Tracer of float): Multiplicative constant.
+        l_lb (Tracer of DeviceArray): SA-Weight for the lower bound loss.
+        l_ub (Tracer of DeviceArray): SA-Weight for the upper bound loss.
+        sizes (list[int]): Network architecture.
         
     Returns:
         (Tracer of) DeviceArray: Optimised network parameters.
@@ -377,41 +371,70 @@ def minimize_lbfgs(params, X, nu, lb, ub, sizes):
     opt_params = opt_params.params
     return opt_params
 
-# ----------------------------------------------------------------------------------------------------------------
-# MODEL HYPERPARAMETERS  
-# ----------------------------------------------------------------------------------------------------------------
+####################################################### 
+###              MODEL HYPERPARAMETERS              ###
+#######################################################
 
-nu = 10 ** (-3) # multiplicative constant 
-layer_sizes = [1, 20, 20, 20, 1] # input, output, hidden layer sizes 
-nIter = 20000 + 1 # number of epochs/iterations 
+"""
+Model Hyperparameter initalisation.
 
-params = init_network_params(layer_sizes, random.PRNGKey(0)) # initialising weights and biases 
-lambda_lb = random.uniform(random.PRNGKey(0), shape=[1]) # initialising lower bound self-adaptive weight 
-lambda_ub = random.uniform(random.PRNGKey(0), shape=[1]) # initialising upper bound self-adaptive weight 
+Defined hyperparameters: 
+    nu (float): Multiplicative constant.
+    layer_sizes (list[int]): Network architecture.
+    nIter (int): Number of epochs / iterations.
+"""
 
-# optimizers for weights/biases, upper bound adaptive weight, and lower bound adaptive weight 
+nu = 10 ** (-3)
+layer_sizes = [1, 20, 20, 20, 1]
+nIter = 20000 + 1
+
+"""
+Initialising weights, biases, and SA-Weights.
+
+Weights and Biases:
+    params (list[DeviceArray[float]]): Initialised weights and biases.
+    lambda_lb (DeviceArray[float]): Initialised lower bound SA-Weight.
+    lambda_ub (DeviceArray[float]): Initialised upper bound SA-Weight.
+"""
+
+params = init_network_params(layer_sizes, random.PRNGKey(0)) 
+lambda_lb = random.uniform(random.PRNGKey(0), shape=[1]) 
+lambda_ub = random.uniform(random.PRNGKey(0), shape=[1])
+
+"""
+Initialising optimisers for weights/biases, upper bound adaptive weight, 
+and lower bound adaptive weight.
+
+Optimisers:
+    opt_state (list[DeviceArray[float]]): Initialised optimised weights and biases state.
+    opt_state_lb (DeviceArray[float]): Initialised optimised lower bound SA-Weight state.
+    opt_state_ub (DeviceArray[float]): Initialised optimised upper bound SA-Weight state.
+"""
+
 opt_init, opt_update, get_params = optimizers.adam(5e-4)
 opt_state = opt_init(params)
+
 opt_init_lb, opt_update_lb, get_params_lb = optimizers.adam(5e-4)
 opt_state_lb = opt_init_lb(lambda_lb)
+
 opt_init_ub, opt_update_ub, get_params_ub = optimizers.adam(5e-4)
 opt_state_ub = opt_init_ub(lambda_ub)
 
-# lists to keep track over upper bound, lower bound, and residue loss during training 
+# lists for upper bound, lower bound, and residue loss values during training.
 l_lb_list = []
 l_ub_list = []
 lf_list = []
-# lists to keep track of upper and lower self-adaptive weight values during training 
+
+# lists for upper and lower SA-Weight values during training. 
 lam_lb_list = []
 lam_ub_list = []
 
-# generation of input data or collocation points 
+# Generation of 'input data', known as collocation points. 
 x = jnp.arange(-1, 1.05, 0.05)
 
-
-# ----------------------------------------------------------------------------------------------------------------
-# MODEL TRAINING  
-# ----------------------------------------------------------------------------------------------------------------
+####################################################### 
+###                  MODEL TRAINING                 ###
+#######################################################
 
 pbar = trange(nIter)
 for it in pbar:
@@ -435,9 +458,9 @@ for it in pbar:
         lam_lb_list.append(lambda_lb)
         lam_ub_list.append(lambda_ub)
 
-# ----------------------------------------------------------------------------------------------------------------
-# FINAL PARAMETER OPTIMIZATION 
-# ----------------------------------------------------------------------------------------------------------------
+####################################################### 
+###          FINAL PARAMETER OPTIMIZATION           ###
+#######################################################
 
 params_new = param_flatten(params)
 params_min = minimize_lbfgs(params_new, x, nu, lambda_lb, lambda_ub, layer_sizes)
@@ -446,9 +469,9 @@ params_mini = param_reshape(params_min, layer_sizes)
 # final prediction of u(x) 
 u_pred = vmap(predict, (None, 0))(params_mini, x)
 
-# ----------------------------------------------------------------------------------------------------------------
-# PLOTTING 
-# ----------------------------------------------------------------------------------------------------------------
+####################################################### 
+###                     PLOTTING                    ###
+#######################################################
 
 fig, axs = plt.subplots(1, 3)
 
@@ -475,9 +498,9 @@ axs[2].set_title('Optimised Lambda Values vs. Epochs')
 
 plt.show()
 
-# ----------------------------------------------------------------------------------------------------------------
-# FINAL LAMBDAS, LOSSES, AND OPTIMIZED LOSSES   
-# ----------------------------------------------------------------------------------------------------------------
+####################################################### 
+###   FINAL LAMBDAS, LOSSES, AND OPTIMIZED LOSSES   ###
+#######################################################
 
 print(lambda_lb, lambda_ub)
 print(loss_lb(params), "loss lower")
