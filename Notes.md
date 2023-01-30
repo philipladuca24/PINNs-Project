@@ -1,5 +1,12 @@
 # Notes:
 
+## Point-adaptive PINNs
+
+- take points and output loss to create dict (return loss as list instead of average), order dict based on loss, take top x percent and add points between them and points on left and right, for edge points only add to left or right depending on edge, 
+- which optimization to run between each new point creation?
+- for percent lowest loss remove the points and move adjacent points to be evenly spaced in interval or just remove point?
+- stop optimization at a loss threshold
+
 ## Self-adaptive PINNs
 
 - L-BFGS-B optimizer not working within jit.
